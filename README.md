@@ -213,6 +213,38 @@ Not exposed: searxng (:8888), termix (:5674), cloak-browser (:9222)
 
 ---
 
+## Verification Results (2026-06-14)
+
+### Bot Detection Test
+
+Hermes `browser_*` via CDP → CloakBrowser:
+```json
+{"isBot": false, "hasBotUserAgent": false, "hasWebdriverTrue": false, "isPlaywright": false, "hasInconsistentChromeObject": false, "isHeadlessChrome": false, "isAutomatedWithCDP": false, ...}
+```
+20/20 signals = false. "You are human!"
+
+### Comparison: Playwright vs Hermes CDP vs harness-cloak
+
+| | Playwright (default) | Hermes CDP | harness-cloak |
+|---|---|---|---|
+| Bot detection | ❌ Detected | ✅ Undetected | ✅ Undetected |
+| Cloudflare | ❌ Blocked | ✅ Passes | ✅ Passes |
+| Accessibility tree | ✅ | ✅ | ❌ (screenshots) |
+| Raw CDP | ❌ | ❌ | ✅ |
+| Self-healing | ❌ | ❌ | ✅ |
+| Domain skills | ❌ | ❌ | ✅ 100+ sites |
+
+### Usage Recommendation
+
+| Scenario | Use |
+|---|---|
+| Normal browsing | Hermes browser_* (fast, ref-based) |
+| Bot-protected sites | Hermes browser_* (CDP → CloakBrowser) |
+| Raw CDP / network intercept | harness-cloak via terminal |
+| Complex sites, self-healing | harness-cloak + domain skills |
+
+---
+
 ## Structure
 
 ```
