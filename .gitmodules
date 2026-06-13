@@ -6,3 +6,7 @@
 	path = firecrawl
 	url = git@github.com:nmphat/firecrawl.git
 	branch = stack-customizations
+[submodule "harness-cloak"]
+	path = harness-cloak
+	url = git@github.com:nmphat/harness-cloak.git
+	branch = cloak

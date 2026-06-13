@@ -38,5 +38,15 @@
     "name": "firecrawl",
     "command": "/home/phat/stack/firecrawl/pm2-start.sh",
     "cwd": "/home/phat/stack/firecrawl"
+  },
+  {
+    "name": "open-design",
+    "command": "docker compose up",
+    "cwd": "/home/phat/stack/open-design"
+  },
+  {
+    "name": "cloak-browser",
+    "command": "/home/phat/stack/scripts/start-cloak-browser.sh",
+    "cwd": "/home/phat/stack"
   }
 ]

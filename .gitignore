@@ -38,3 +38,4 @@ cloudflare-tunnel/
 
 # Generated at runtime by pnpm start
 ecosystem.config.js
+data/
