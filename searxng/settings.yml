@@ -1,0 +1,21 @@
+use_default_settings: true
+
+general:
+  instance_name: "SearXNG"
+
+search:
+  safe_search: 0
+  autocomplete: ""
+  default_lang: "auto"
+  formats:
+    - html
+    - json
+
+server:
+  secret_key: "1e5e57d6c4b47de3dad4b18bfedbcf9bc76e6f2c4ef67cb76fa82d912c85036d"
+  limiter: false
+  image_proxy: false
+
+ui:
+  static_use_hash: true
+  default_theme: simple

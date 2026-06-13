@@ -1,0 +1,18 @@
+{
+  "name": "stack-wrapper",
+  "private": true,
+  "scripts": {
+    "start": "node scripts/start.js",
+    "new": "node scripts/add.js",
+    "remove": "node scripts/remove.js",
+    "stop": "npx pm2 stop all",
+    "restart": "npx pm2 restart all",
+    "status": "npx pm2 status",
+    "logs": "npx pm2 logs",
+    "delete": "npx pm2 delete all",
+    "list": "cat services.json | jq ."
+  },
+  "devDependencies": {
+    "pm2": "^5.4.0"
+  }
+}

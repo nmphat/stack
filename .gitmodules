@@ -1,0 +1,8 @@
+[submodule "hermes-webui"]
+	path = hermes-webui
+	url = git@github.com:nesquena/hermes-webui.git
+	branch = master
+[submodule "firecrawl"]
+	path = firecrawl
+	url = git@github.com:nmphat/firecrawl.git
+	branch = stack-customizations

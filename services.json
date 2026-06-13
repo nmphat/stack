@@ -1,0 +1,42 @@
+[
+  {
+    "name": "9router",
+    "command": "/home/phat/stack/scripts/9router.sh",
+    "cwd": "/home/phat/stack"
+  },
+  {
+    "name": "portainer",
+    "command": "docker compose up",
+    "cwd": "/home/phat/stack/portainer"
+  },
+  {
+    "name": "searxng",
+    "command": "docker compose up",
+    "cwd": "/home/phat/stack/searxng"
+  },
+  {
+    "name": "hermes-gateway",
+    "command": "hermes gateway",
+    "cwd": "/home/phat/stack"
+  },
+  {
+    "name": "hindsight",
+    "command": "docker compose up",
+    "cwd": "/home/phat/stack/hindsight"
+  },
+  {
+    "name": "termix",
+    "command": "docker compose up",
+    "cwd": "/home/phat/stack/termix"
+  },
+  {
+    "name": "hermes-webui",
+    "command": "/home/phat/stack/hermes-webui/pm2-start.sh",
+    "cwd": "/home/phat/stack/hermes-webui"
+  },
+  {
+    "name": "firecrawl",
+    "command": "/home/phat/stack/firecrawl/pm2-start.sh",
+    "cwd": "/home/phat/stack/firecrawl"
+  }
+]

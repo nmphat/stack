@@ -1,0 +1,26 @@
+services:
+  termix:
+    image: ghcr.io/lukegus/termix:latest
+    container_name: termix
+    healthcheck:
+      test: timeout 10s bash -c ':> /dev/tcp/127.0.0.1/5674' || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+    ports:
+      - "5674:5674"
+    volumes:
+      - ./data:/app/data:rw
+    environment:
+      PORT: 5674
+    depends_on:
+      - guacd
+    restart: on-failure:5
+
+  guacd:
+    image: guacamole/guacd:latest
+    container_name: termix-guacd
+    ports:
+      - "4822:4822"
+    restart: on-failure:5

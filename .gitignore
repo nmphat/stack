@@ -1,0 +1,40 @@
+# Runtime
+node_modules/
+logs/
+*.log
+
+# Secrets — NEVER commit
+.env
+.env.*
+!.env.example
+!.env.docker.example
+
+# Data volumes
+termix/data/
+hindsight/mem0-export.json
+hindsight/openmemory-export.json
+
+# PM2 state
+.pm2/
+dump.pm2
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Hermes agent local state
+.hermes/
+.claude/
+
+# Inactive services (not managed by stack)
+mem0/
+openmemory/
+open-design/
+cloudflare-tunnel/
+
+# Generated at runtime by pnpm start
+ecosystem.config.js
