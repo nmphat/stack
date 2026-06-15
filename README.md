@@ -26,12 +26,108 @@ cd stack
 pnpm start
 ```
 
-## Adding a Service
+
+---
+
+## Stack Manager Usage
+
+The stack is managed via PM2 + pnpm. All services defined in `services.json`.
+
+### Start All Services
+
+```bash
+pnpm start
+```
+
+### Stop All Services
+
+```bash
+pnpm stop
+```
+
+### Service Management
+
+```bash
+# List all services and status
+pm2 list
+
+# Restart a specific service
+pm2 restart hermes-webui
+pm2 restart firecrawl
+
+# Stop a specific service
+pm2 stop searxng
+
+# View logs
+pm2 logs                    # all services
+pm2 logs hermes-webui       # single service
+pm2 logs firecrawl --lines 50
+
+# Monitor (CPU/memory)
+pm2 monit
+```
+
+### Add a Service
 
 ```bash
 node scripts/add.js <name> "<command>" [cwd]
 pnpm start
 ```
+
+### Remove a Service
+
+```bash
+node scripts/remove.js <name>
+pnpm start
+```
+
+### Save PM2 State
+
+After starting/stopping services, save the process list for auto-restart on boot:
+
+```bash
+pm2 save
+```
+
+### Auto-Start on Boot
+
+PM2 systemd service is configured at `/etc/systemd/system/pm2-phat.service`. On reboot, `pm2 resurrect` starts all saved services.
+
+### Auto-Update (Cron)
+
+Stack auto-updates every 6 hours via `scripts/stack-update.sh`:
+
+- Git services (hermes-webui, firecrawl, open-design): ff-merge or rebase
+- Forks with upstream (harness-cloak): sync upstream first
+- CloakBrowser: check for new binary
+- Post-update hooks: pnpm install, docker compose up, uv tool install
+- Conflict resolution: auto via Hermes agent from `.conflict-resolve.md`
+
+Manual run:
+
+```bash
+~/stack/scripts/stack-update.sh
+```
+
+Logs: `~/stack/logs/stack-update.log`
+
+### Service-Specific Setup
+
+Each service has its own README.md and .env.example:
+
+| Service | README | .env.example |
+|---------|--------|--------------|
+| 9router | [9router/README.md](9router/README.md) | [9router/.env.example](9router/.env.example) |
+| portainer | [portainer/README.md](portainer/README.md) | [portainer/.env.example](portainer/.env.example) |
+| searxng | [searxng/README.md](searxng/README.md) | [searxng/.env.example](searxng/.env.example) |
+| hermes-gateway | (hermes CLI) | N/A |
+| hindsight | [hindsight/README.md](hindsight/README.md) | [hindsight/.env.example](hindsight/.env.example) |
+| termix | [termix/README.md](termix/README.md) | [termix/.env.example](termix/.env.example) |
+| hermes-webui | [hermes-webui/README.md](hermes-webui/README.md) | [hermes-webui/.env.example](hermes-webui/.env.example) |
+| firecrawl | [firecrawl/README.md](firecrawl/README.md) | [firecrawl/.env.example](firecrawl/.env.example) |
+| open-design | [open-design/README.md](open-design/README.md) | [open-design/deploy/.env.example](open-design/deploy/.env.example) |
+| cloak-browser | (auto-started) | N/A |
+
 
 ---
 
