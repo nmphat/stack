@@ -16,11 +16,11 @@ services:
       PORT: 5674
     depends_on:
       - guacd
-    restart: on-failure:5
+    restart: unless-stopped
 
   guacd:
     image: guacamole/guacd:latest
     container_name: termix-guacd
     ports:
       - "4822:4822"
-    restart: on-failure:5
+    restart: unless-stopped

@@ -162,7 +162,7 @@ update_service "harness-cloak" "harness-cloak" "cloak" "upstream" \
     "uv tool install -e ~/stack/harness-cloak --force 2>/dev/null" \
     "echo skip"  # no PM2 restart needed — daemon auto-starts
 
-update_service "open-design" "open-design" "main" "" \
+update_service "open-design" "open-design" "stack-customizations" "upstream" \
     "" \
     "pm2 restart open-design"
 
