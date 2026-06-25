@@ -163,7 +163,7 @@ update_service "harness-cloak" "harness-cloak" "cloak" "upstream" \
     "echo skip"  # no PM2 restart needed — daemon auto-starts
 
 update_service "open-design" "open-design" "stack-customizations" "upstream" \
-    "" \
+    "cd ~/stack/open-design && pnpm install 2>/dev/null" \
     "pm2 restart open-design"
 
 # ─── CloakBrowser binary update (not git-based) ────────────────
