@@ -89,3 +89,61 @@ User-Agent. Override it:
 ```
 HINDSIGHT_API_LLM_DEFAULT_HEADERS={"User-Agent": "curl/8.5.0"}
 ```
+
+## Per-project memory banks (Hermes)
+
+Hermes ships no per-project bank selection. Every other Hindsight integration
+(codex, cursor, copilot-cli, zcode) has `dynamicBankId`; the Hermes provider
+only has a single `bank_id`, so without this every project shares one bank.
+Upstream PR #97620 adds `{workspace}` resolution and `.hindsight/config.toml`,
+but it is unmerged -- that TOML file does nothing today.
+
+Two things are worth knowing before configuring it:
+
+**The provider does not read `config.yaml`.** `memory.hindsight.*` there is only
+what `hermes memory status` prints. The plugin calls `_load_config()`, which
+reads `$HERMES_HOME/hindsight/config.json`, else `~/.hindsight/config.json`,
+else the environment. So `bank_id` and `bank_id_template` in `config.yaml` have
+no effect at runtime, and `HINDSIGHT_BANK_ID` is the lever that works.
+
+**Creating a `config.json` disables that lever.** The env branch is only reached
+when neither JSON file exists, so keep the configuration in `~/.hermes/.env`:
+
+```
+HINDSIGHT_MODE=local_external
+HINDSIGHT_API_URL=http://127.0.0.1:8890
+HINDSIGHT_API_KEY=<tenant key>
+HINDSIGHT_LLM_API_KEY=<any non-empty value; the server owns the LLM call>
+HINDSIGHT_API_LLM_OUTPUT_LANGUAGE=English
+```
+
+Then derive the bank from the working directory. This belongs **above** the
+`# If not running interactively, don't do anything` return in `~/.bashrc`, or
+`bash -lc hermes` never sees the function:
+
+```bash
+hermes() {
+    local root
+    # A submodule's toplevel is the submodule; ask for the superproject first
+    # so ~/stack/firecrawl is still bank-stack.
+    root=$(git -C "$PWD" rev-parse --show-superproject-working-tree 2>/dev/null)
+    [ -n "$root" ] || root=$(git -C "$PWD" rev-parse --show-toplevel 2>/dev/null)
+    [ -n "$root" ] || root=$PWD
+    local slug
+    slug=$(basename "$root" | tr -c 'A-Za-z0-9_-' '-' | sed 's/^-*//; s/-*$//')
+    HINDSIGHT_BANK_ID="bank-${slug}" command hermes "$@"
+}
+```
+
+| Working directory | Bank |
+|---|---|
+| `~/project-badminton` | `bank-project-badminton` |
+| `~/stack` | `bank-stack` |
+| `~/stack/firecrawl` | `bank-stack` |
+
+Systemd services do not source `.bashrc`, so hermes-webui falls back to the
+plugin default bank. Set `HINDSIGHT_BANK_ID` in its unit if it should differ.
+
+`HINDSIGHT_API_LLM_OUTPUT_LANGUAGE` is not cosmetic: mimo extracts facts in
+Chinese by default, and recall matches stored text against the query, so mixed
+languages quietly cost retrieval accuracy.
