@@ -120,25 +120,49 @@ parent's bank. Nothing else to configure.
 Full precedence, highest first: `--hindsight-bank` flag → closest
 `.hindsight/config.toml` → `bank_id_template` → static `bank_id`.
 
-### Two ways to name the bank
+### Naming the bank
 
-**Per repo — `.hindsight/config.toml`.** Travels with the repository, so a
-clone on another machine gets the same bank with nothing to set up. This repo
-uses it.
+Put one file at the top of whatever you consider "the project":
 
-**Per machine — the project registry.** `scripts/project` registers a directory
-in Hermes' `projects.db`, which is what the PR's `{workspace}` placeholder
-resolves against. No file inside the project:
+```toml
+# <project>/.hindsight/config.toml
+bank_id = "bank-<project>"
+```
+
+The walk-up is filesystem-only -- it does not stop at a git boundary. That is
+what makes a wrapper directory work: keep the docs and context at the top,
+clone the repositories underneath, and every one of them shares the wrapper's
+bank.
+
+```
+wrapper-badminton/
+  .hindsight/config.toml    bank_id = "bank-wrapper-badminton"
+  docs/
+  bmt-fe/        (its own git repo)
+  bmt-be/
+  bmt-admin-fe/
+  bmt-admin-be/
+```
+
+Verified: from `bmt-fe`, `bmt-admin-be`, `docs/` and the wrapper root alike,
+the provider resolves `bank-wrapper-badminton`. A retain run from inside
+`bmt-fe` landed there and created no `bank-bmt-fe`.
+
+Give a repository its own file only when you want it split out; the nearest
+file upward wins, so a TOML inside `bmt-fe` would override the wrapper's.
+
+**Alternative, per machine.** `scripts/project` registers a directory in
+Hermes' `projects.db`, which is what the PR's `{workspace}` placeholder
+resolves against -- useful when you do not want a file inside the tree:
 
 ```bash
 project add                 # register cwd
-project add ~/notes --slug notes
 project list
 project which               # what covers cwd, and which bank that means
-project remove notes
+project remove <slug>
 ```
 
-Then, in `~/.hindsight/config.json`:
+It needs `bank_id_template` in `~/.hindsight/config.json`:
 
 ```json
 {
@@ -152,12 +176,15 @@ Then, in `~/.hindsight/config.json`:
 repeated here, because creating this file switches off the env-only branch that
 supplied it.
 
-The TOML wins where both exist. Outside any project and with no TOML,
-`{workspace}` renders empty and the static `bank_id` applies.
-
 `scripts/project` re-execs under Hermes' bundled interpreter. The distro python
 links SQLite 3.45, which `projects_db` will not open in WAL mode because of the
 wal-reset corruption bug, so every call otherwise prints a paragraph about it.
+
+Nothing derives a bank from the shell. A `hermes()` wrapper that guessed from
+`git rev-parse` was tried and removed: it names the innermost repository, which
+is exactly wrong for a wrapper layout, and it silently creates a bank for any
+directory you happen to run from. Outside a TOML and a registered project the
+static `bank_id` applies, which is the quiet default you want.
 
 ### It works in the WebUI too
 
@@ -228,20 +255,4 @@ Once PR #97620 merges, drop the patch instead of carrying it:
 ```bash
 cd ~/.hermes/hermes-agent
 git checkout main && git pull && git branch -D hindsight-per-project
-```
-
-Optional CLI convenience for directories with neither a TOML nor a registry
-entry. It must go **above** the `# If not running interactively` return in
-`.bashrc`, or `bash -lc hermes` never sees it:
-
-```bash
-hermes() {
-    local root
-    root=$(git -C "$PWD" rev-parse --show-superproject-working-tree 2>/dev/null)
-    [ -n "$root" ] || root=$(git -C "$PWD" rev-parse --show-toplevel 2>/dev/null)
-    [ -n "$root" ] || root=$PWD
-    local slug
-    slug=$(basename "$root" | tr -c 'A-Za-z0-9_-' '-' | sed 's/^-*//; s/-*$//')
-    HINDSIGHT_BANK_ID="bank-${slug}" command hermes "$@"
-}
 ```
