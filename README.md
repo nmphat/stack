@@ -16,6 +16,39 @@ Homelab service orchestrator. PM2 manages all services via `pnpm start`.
 | firecrawl | Git+Docker | 3092 | `firecrawl/` | submodule nmphat/stack-customizations | `stack-update.sh` |
 | **cloak-browser** | **PM2** | **9222** | **`scripts/start-cloak-browser.sh`** | — | **auto via stack-update.sh** |
 
+## Oracle VPS (`oc-` hosts)
+
+The Oracle box does not run PM2. Every service there already ships a supervisor
+of its own, so a third one would only add a layer that can disagree with them:
+
+| Service | Supervised by |
+|---|---|
+| 9router, portainer, searxng, termix, hindsight | `docker compose` with `restart: unless-stopped` |
+| hermes-webui | systemd user unit from its own `docs/supervisor.md` |
+| hermes gateway | `hermes gateway install` (systemd), when it is installed |
+
+`pnpm start`, `services.json` and `scripts/start.js` are the homelab's mechanism
+and are unused on that host.
+
+The systemd unit runs as the `ubuntu` user, so boot start needs lingering:
+
+```bash
+sudo loginctl enable-linger ubuntu
+systemctl --user enable --now hermes-webui.service
+```
+
+Nothing is published by binding to a public interface. Services listen on
+loopback or on a published container port, and `cloudflared` is the only thing
+that reaches the internet. Every hostname is prefixed `oc-`, which keeps the
+VPS from colliding with the homelab in the same `3p.id.vn` zone:
+
+```bash
+sudo tunnel add oc-<name> <port>
+tunnel list
+```
+
+Anything reachable through the tunnel needs its own auth — the tunnel is not one.
+
 ## Quick Start
 
 ```bash
