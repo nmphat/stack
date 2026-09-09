@@ -1,44 +1,30 @@
 # 9router
-
 Local LLM API router. Routes requests to multiple LLM providers via a unified OpenAI-compatible endpoint.
-
 ## Setup
-
-No .env file needed. Run via CLI flags:
-
+Runs as Docker Compose, with a `headroom` sidecar it proxies through.
 ```bash
-9router --port 20128 --host 0.0.0.0
+cp .env.example .env    # then fill in the four secrets
+docker compose up -d
 ```
-
-Or via PM2 (stack default):
-
+Generate the secrets once; never commit the real `.env`:
 ```bash
-pnpm start   # starts all stack services including 9router
+openssl rand -hex 32    # JWT_SECRET, API_KEY_SECRET
+openssl rand -hex 16    # MACHINE_ID_SALT, INITIAL_PASSWORD
 ```
-
+`BASE_URL` must match the address you actually reach the UI on, otherwise
+login redirects break.
 ## Ports
-
 | Port | Protocol | Description |
 |------|----------|-------------|
-| 20128 | HTTP | OpenAI-compatible API endpoint |
-
-## Config
-
-All config via CLI flags. See `9router --help`:
-
-```
--p, --port <port>   Port (default: 20128)
--H, --host <host>   Bind address (default: 0.0.0.0)
--n, --no-browser    Don't open browser
--l, --log           Show server logs
--t, --tray          System tray mode
---skip-update       Skip auto-update check
-```
-
+| 20128 | HTTP | Web dashboard + OpenAI-compatible API endpoint |
+`headroom` listens on 8787 inside the compose network only.
 ## Update
-
-Manual: `npm update -g 9router`
-
+```bash
+docker compose pull && docker compose up -d
+```
 ## Cloudflare Tunnel
-
-Accessible at: `router.3p.id.vn`
+Not exposed by default. To publish it:
+```bash
+sudo tunnel add oc-9router 20128
+```
+Every hostname on this VPS is prefixed `oc-`.

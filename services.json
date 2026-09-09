@@ -1,8 +1,8 @@
 [
   {
     "name": "9router",
-    "command": "$HOME/stack/scripts/9router.sh",
-    "cwd": "$HOME/stack"
+    "command": "docker compose up",
+    "cwd": "$HOME/stack/9router"
   },
   {
     "name": "portainer",

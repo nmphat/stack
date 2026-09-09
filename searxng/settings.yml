@@ -12,7 +12,7 @@ search:
     - json
 
 server:
-  secret_key: "1e5e57d6c4b47de3dad4b18bfedbcf9bc76e6f2c4ef67cb76fa82d912c85036d"
+  secret_key: "set-via-SEARXNG_SECRET-env"
   limiter: false
   image_proxy: false
 

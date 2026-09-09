@@ -26,7 +26,7 @@ docker compose up -d
 
 - `search.formats` -- must include `json` for API access
 - `engines` -- enable/disable search engines
-- `server.secret_key` -- generate with `openssl rand -hex 32`
+- secret key -- set `SEARXNG_SECRET` in `.env` (`openssl rand -hex 32`); it overrides `server.secret_key` in settings.yml, which is a placeholder
 
 ## Usage
 
