@@ -92,22 +92,69 @@ HINDSIGHT_API_LLM_DEFAULT_HEADERS={"User-Agent": "curl/8.5.0"}
 
 ## Per-project memory banks (Hermes)
 
-Hermes ships no per-project bank selection. Every other Hindsight integration
-(codex, cursor, copilot-cli, zcode) has `dynamicBankId`; the Hermes provider
-only has a single `bank_id`, so without this every project shares one bank.
-Upstream PR #97620 adds `{workspace}` resolution and `.hindsight/config.toml`,
-but it is unmerged -- that TOML file does nothing today.
+Stock Hermes has no per-project bank: every other Hindsight integration exposes
+`dynamicBankId`, the Hermes provider only has one `bank_id`, so all projects
+share one memory. This box carries upstream PR #97620 (unmerged) to fix it —
+see "Keeping the patch" below.
 
-Two things are worth knowing before configuring it:
+### How to use it
 
-**The provider does not read `config.yaml`.** `memory.hindsight.*` there is only
-what `hermes memory status` prints. The plugin calls `_load_config()`, which
-reads `$HERMES_HOME/hindsight/config.json`, else `~/.hindsight/config.json`,
-else the environment. So `bank_id` and `bank_id_template` in `config.yaml` have
-no effect at runtime, and `HINDSIGHT_BANK_ID` is the lever that works.
+Drop one file at the root of a project:
 
-**Creating a `config.json` disables that lever.** The env branch is only reached
-when neither JSON file exists, so keep the configuration in `~/.hermes/.env`:
+```toml
+# <project>/.hindsight/config.toml
+bank_id = "bank-<project>"
+```
+
+The provider walks up from the session's working directory and takes the
+closest one, so a subdirectory — including a git submodule — inherits its
+parent's bank. Nothing else to configure.
+
+| Working directory | Bank |
+|---|---|
+| `~/stack` | `bank-stack` |
+| `~/stack/firecrawl` | `bank-stack` (inherited) |
+| `~/project-badminton` | `bank-project-badminton` |
+| `~` | falls back to the static `bank_id` |
+
+Full precedence, highest first: `--hindsight-bank` flag → closest
+`.hindsight/config.toml` → `bank_id_template` → static `bank_id`.
+
+### Why the TOML and not the template
+
+The PR also makes `{workspace}` in `bank_id_template` resolve to a real project
+slug, but it reads that slug from the projects registry in `projects.db`, and
+this build ships no `hermes projects` command to populate it. With an empty
+registry `{workspace}` renders empty, so the TOML is the lever that works here.
+
+### It works in the WebUI too
+
+The WebUI runs the agent in-process, and its per-session workspace never
+becomes the process working directory — so a shell wrapper cannot reach it.
+What does reach it: before each run the WebUI sets `TERMINAL_CWD` to the
+session's workspace (`api/streaming.py`), and `resolve_agent_cwd()` — the same
+function the TOML walk-up starts from — reads `TERMINAL_CWD` ahead of
+`os.getcwd()`. Verified by running from `~` with only `TERMINAL_CWD` pointing
+elsewhere: the memory landed in that directory's bank.
+
+One caveat, which is the WebUI's design and not this patch: `TERMINAL_CWD` is
+process-global and the lock is released before the agent runs, so two sessions
+on different workspaces started at the same instant can in principle read each
+other's value.
+
+### What does not work
+
+`AGENTS.md` cannot do this. The bank is chosen when the provider initialises,
+before the model sees any prompt, and neither `hindsight_recall` nor
+`hindsight_retain` takes a bank argument — so no instruction can move it.
+
+`memory.hindsight.*` in `~/.hermes/config.yaml` is only what
+`hermes memory status` prints. The provider calls `_load_config()`, which reads
+`$HERMES_HOME/hindsight/config.json`, else `~/.hindsight/config.json`, else the
+environment. Setting `bank_id` there changes nothing at runtime.
+
+Creating either `config.json` switches off the environment branch, so keep the
+connection settings in `~/.hermes/.env`:
 
 ```
 HINDSIGHT_MODE=local_external
@@ -117,15 +164,30 @@ HINDSIGHT_LLM_API_KEY=<any non-empty value; the server owns the LLM call>
 HINDSIGHT_API_LLM_OUTPUT_LANGUAGE=English
 ```
 
-Then derive the bank from the working directory. This belongs **above** the
-`# If not running interactively, don't do anything` return in `~/.bashrc`, or
-`bash -lc hermes` never sees the function:
+The last one is not cosmetic: mimo extracts facts in Chinese by default, and
+recall matches stored text against the query, so a mixed-language bank loses
+accuracy with no visible error.
+
+### Keeping the patch
+
+`~/.hermes/hermes-agent` is on branch `hindsight-per-project`: upstream commit
+`26128052ac` cherry-picked onto `72a3277cd7`. It applied without conflicts.
+
+`hermes update` pulls, so it will now hit a divergent branch. When PR #97620
+merges, drop the patch instead of merging it:
+
+```bash
+cd ~/.hermes/hermes-agent
+git checkout main && git pull && git branch -D hindsight-per-project
+```
+
+Optional CLI convenience, for directories with no `.hindsight/config.toml`.
+It must go **above** the `# If not running interactively` return in `.bashrc`,
+or `bash -lc hermes` never sees it:
 
 ```bash
 hermes() {
     local root
-    # A submodule's toplevel is the submodule; ask for the superproject first
-    # so ~/stack/firecrawl is still bank-stack.
     root=$(git -C "$PWD" rev-parse --show-superproject-working-tree 2>/dev/null)
     [ -n "$root" ] || root=$(git -C "$PWD" rev-parse --show-toplevel 2>/dev/null)
     [ -n "$root" ] || root=$PWD
@@ -134,16 +196,3 @@ hermes() {
     HINDSIGHT_BANK_ID="bank-${slug}" command hermes "$@"
 }
 ```
-
-| Working directory | Bank |
-|---|---|
-| `~/project-badminton` | `bank-project-badminton` |
-| `~/stack` | `bank-stack` |
-| `~/stack/firecrawl` | `bank-stack` |
-
-Systemd services do not source `.bashrc`, so hermes-webui falls back to the
-plugin default bank. Set `HINDSIGHT_BANK_ID` in its unit if it should differ.
-
-`HINDSIGHT_API_LLM_OUTPUT_LANGUAGE` is not cosmetic: mimo extracts facts in
-Chinese by default, and recall matches stored text against the query, so mixed
-languages quietly cost retrieval accuracy.
