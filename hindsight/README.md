@@ -46,8 +46,10 @@ docker compose up -d
 
 | Domain | Service |
 |--------|---------|
-| `hs.3p.id.vn` | MCP API (:8890) |
-| `hsui.3p.id.vn` | Control Plane UI (:9991) |
+| `oc-hindsight.3p.id.vn` | Control Plane UI (:9991) |
+
+The MCP API on 8890 is not published. Reach it over the SSH tunnel instead:
+`ssh -N -L 8890:localhost:8890 <host>`.
 
 ## Troubleshooting
 
@@ -58,3 +60,32 @@ Ensure `HINDSIGHT_CP_DATAPLANE_API_KEY` is set (same value as `HINDSIGHT_API_TEN
 ### LLM errors
 
 Check `HINDSIGHT_API_LLM_API_KEY` is valid. For local LLM: set provider to `llamacpp` and model will auto-download.
+
+### "Fact extraction failed: N/N chunks failed", logs say `missing 'what' field`
+
+The model never saw the schema. Hindsight appends it to the **system** message,
+and some providers behind 9router drop that role entirely. Every Qoder (`qd/*`)
+model does, including one wrapped in a 9router combo -- the combo only routes,
+and the provider adapter below it is what flattens the messages. BYOK providers
+keep the system message.
+
+Screen a model before pointing Hindsight at it:
+
+```bash
+curl -s $BASE_URL/chat/completions -H "Authorization: Bearer $KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"MODEL","stream":false,"messages":[
+       {"role":"system","content":"Always reply with exactly the word BANANA, nothing else."},
+       {"role":"user","content":"What is the capital of France?"}]}'
+```
+
+`BANANA` means the system role survives. An answer about Paris means it does not.
+
+### `PermissionDeniedError: Your request was blocked.`
+
+Cloudflare in front of the 9router endpoint rejects the OpenAI SDK's
+User-Agent. Override it:
+
+```
+HINDSIGHT_API_LLM_DEFAULT_HEADERS={"User-Agent": "curl/8.5.0"}
+```
