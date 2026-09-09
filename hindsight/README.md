@@ -120,12 +120,44 @@ parent's bank. Nothing else to configure.
 Full precedence, highest first: `--hindsight-bank` flag → closest
 `.hindsight/config.toml` → `bank_id_template` → static `bank_id`.
 
-### Why the TOML and not the template
+### Two ways to name the bank
 
-The PR also makes `{workspace}` in `bank_id_template` resolve to a real project
-slug, but it reads that slug from the projects registry in `projects.db`, and
-this build ships no `hermes projects` command to populate it. With an empty
-registry `{workspace}` renders empty, so the TOML is the lever that works here.
+**Per repo — `.hindsight/config.toml`.** Travels with the repository, so a
+clone on another machine gets the same bank with nothing to set up. This repo
+uses it.
+
+**Per machine — the project registry.** `scripts/project` registers a directory
+in Hermes' `projects.db`, which is what the PR's `{workspace}` placeholder
+resolves against. No file inside the project:
+
+```bash
+project add                 # register cwd
+project add ~/notes --slug notes
+project list
+project which               # what covers cwd, and which bank that means
+project remove notes
+```
+
+Then, in `~/.hindsight/config.json`:
+
+```json
+{
+  "mode": "local_external",
+  "bank_id_template": "bank-{workspace}",
+  "bank_id": "hermes"
+}
+```
+
+`api_url` and `api_key` still come from the environment; only `mode` has to be
+repeated here, because creating this file switches off the env-only branch that
+supplied it.
+
+The TOML wins where both exist. Outside any project and with no TOML,
+`{workspace}` renders empty and the static `bank_id` applies.
+
+`scripts/project` re-execs under Hermes' bundled interpreter. The distro python
+links SQLite 3.45, which `projects_db` will not open in WAL mode because of the
+wal-reset corruption bug, so every call otherwise prints a paragraph about it.
 
 ### It works in the WebUI too
 
@@ -171,19 +203,36 @@ accuracy with no visible error.
 ### Keeping the patch
 
 `~/.hermes/hermes-agent` is on branch `hindsight-per-project`: upstream commit
-`26128052ac` cherry-picked onto `72a3277cd7`. It applied without conflicts.
+`26128052ac` cherry-picked onto `72a3277cd7`, applied without conflicts.
 
-`hermes update` pulls, so it will now hit a divergent branch. When PR #97620
-merges, drop the patch instead of merging it:
+`hermes update` handles this, but not by default. Its autostash only covers
+uncommitted work; a committed patch is a "parked branch", and the default
+`updates.parked_branch_strategy: switch` moves the checkout back to `main` --
+the commit survives on the branch, but the patch quietly stops being the code
+that runs. So this box sets:
+
+```yaml
+updates:
+  parked_branch_strategy: update_in_place
+```
+
+which merges `origin/main` INTO the branch after tagging `pre-update-<stamp>`,
+leaving the checkout where it is and the commit intact. A conflict stops the
+update cleanly rather than half-applying it.
+
+A dirty working tree blocks the switch entirely and skips the code update, so
+commit or stash before updating.
+
+Once PR #97620 merges, drop the patch instead of carrying it:
 
 ```bash
 cd ~/.hermes/hermes-agent
 git checkout main && git pull && git branch -D hindsight-per-project
 ```
 
-Optional CLI convenience, for directories with no `.hindsight/config.toml`.
-It must go **above** the `# If not running interactively` return in `.bashrc`,
-or `bash -lc hermes` never sees it:
+Optional CLI convenience for directories with neither a TOML nor a registry
+entry. It must go **above** the `# If not running interactively` return in
+`.bashrc`, or `bash -lc hermes` never sees it:
 
 ```bash
 hermes() {

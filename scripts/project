@@ -1,0 +1,141 @@
+#!/usr/bin/env python3
+"""Register directories as Hermes projects.
+
+Hermes keeps a project registry in $HERMES_HOME/projects.db, and the Hindsight
+memory provider turns the project covering the agent's working directory into
+the {workspace} placeholder of bank_id_template. There is no `hermes projects`
+command in this build, so without something like this the registry stays empty
+and {workspace} always renders blank.
+
+Reuses hermes_cli.projects_db rather than touching the SQLite schema directly,
+so a schema change upstream cannot silently corrupt the file.
+"""
+
+import argparse
+import os
+import sys
+from pathlib import Path
+
+AGENT_DIR = Path(os.environ.get("HERMES_AGENT_DIR", Path.home() / ".hermes" / "hermes-agent"))
+
+
+def _reexec_under_hermes_python():
+    """Hand over to the interpreter Hermes ships.
+
+    The distro python links SQLite 3.45, which projects_db refuses to open in
+    WAL mode over the wal-reset corruption bug; it falls back and prints a
+    paragraph of warning on every call. Hermes' own venv links 3.53, so running
+    there keeps the database in the same mode Hermes itself uses and the output
+    stays readable.
+    """
+    if os.environ.get("_PROJECT_REEXEC"):
+        return
+    venv_python = AGENT_DIR / "venv" / "bin" / "python"
+    if not venv_python.is_file() or Path(sys.executable).resolve() == venv_python.resolve():
+        return
+    os.environ["_PROJECT_REEXEC"] = "1"
+    os.execv(str(venv_python), [str(venv_python), os.path.abspath(__file__), *sys.argv[1:]])
+
+
+def _load_db():
+    if not (AGENT_DIR / "hermes_cli" / "projects_db.py").is_file():
+        sys.exit(f"[ERR] hermes-agent not found at {AGENT_DIR}\n"
+                 f"      set HERMES_AGENT_DIR if it lives elsewhere")
+    sys.path.insert(0, str(AGENT_DIR))
+    import hermes_cli.projects_db as db
+    return db
+
+
+def _slugify(name):
+    out = "".join(c if (c.isalnum() or c in "-_") else "-" for c in name.lower())
+    return out.strip("-_") or "project"
+
+
+def _covering(projects, path):
+    """The project whose folder is the longest prefix of *path* — the same
+    longest-prefix rule the memory provider applies."""
+    target = str(Path(path).expanduser().resolve())
+    best, best_len = None, -1
+    for p in projects:
+        for f in p.folders:
+            folder = str(Path(f.path).resolve())
+            if (target == folder or target.startswith(folder.rstrip("/") + "/")) and len(folder) > best_len:
+                best, best_len = p, len(folder)
+    return best
+
+
+def cmd_add(db, args):
+    path = Path(args.path or os.getcwd()).expanduser().resolve()
+    if not path.is_dir():
+        sys.exit(f"[ERR] not a directory: {path}")
+    name = args.name or path.name
+    slug = args.slug or _slugify(name)
+    with db.connect_closing() as conn:
+        try:
+            pid = db.create_project(conn, name=name, slug=slug, primary_path=str(path))
+        except ValueError as exc:
+            sys.exit(f"[ERR] {exc}")
+        created = db.get_project(conn, pid)
+    print(f"[OK] {created.slug}  ->  {path}")
+    print(f"     bank with bank_id_template \"bank-{{workspace}}\": bank-{created.slug}")
+
+
+def cmd_list(db, args):
+    with db.connect_closing() as conn:
+        projects = db.list_projects(conn, include_archived=args.all)
+    if not projects:
+        print("no projects registered")
+        return
+    width = max(len(p.slug) for p in projects)
+    for p in projects:
+        primary = p.primary_path or (p.folders[0].path if p.folders else "-")
+        extra = f"  (+{len(p.folders) - 1} more)" if len(p.folders) > 1 else ""
+        flag = "  [archived]" if p.archived else ""
+        print(f"  {p.slug:<{width}}  {primary}{extra}{flag}")
+
+
+def cmd_remove(db, args):
+    with db.connect_closing() as conn:
+        project = db.get_project(conn, args.slug)
+        if project is None:
+            sys.exit(f"[ERR] no project '{args.slug}'")
+        db.delete_project(conn, project.id)
+    print(f"[OK] removed {project.slug}")
+
+
+def cmd_which(db, args):
+    path = Path(args.path or os.getcwd()).expanduser().resolve()
+    with db.connect_closing() as conn:
+        match = _covering(db.list_projects(conn), path)
+    if match is None:
+        print(f"{path}\n  no project covers this path — {{workspace}} renders empty")
+        return
+    print(f"{path}\n  project: {match.slug}\n  bank:    bank-{match.slug}")
+
+
+def main():
+    ap = argparse.ArgumentParser(prog="project", description=__doc__.splitlines()[0])
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    p_add = sub.add_parser("add", help="register a directory (default: cwd)")
+    p_add.add_argument("path", nargs="?")
+    p_add.add_argument("--name")
+    p_add.add_argument("--slug")
+
+    p_list = sub.add_parser("list", help="list registered projects")
+    p_list.add_argument("--all", action="store_true", help="include archived")
+
+    p_rm = sub.add_parser("remove", help="remove a project by slug")
+    p_rm.add_argument("slug")
+
+    p_which = sub.add_parser("which", help="which project covers a path (default: cwd)")
+    p_which.add_argument("path", nargs="?")
+
+    args = ap.parse_args()
+    _reexec_under_hermes_python()
+    db = _load_db()
+    {"add": cmd_add, "list": cmd_list, "remove": cmd_remove, "which": cmd_which}[args.cmd](db, args)
+
+
+if __name__ == "__main__":
+    main()
