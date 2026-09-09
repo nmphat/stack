@@ -14,11 +14,13 @@ services:
       - ./data:/app/data:rw
     environment:
       PORT: 5674
-    depends_on:
-      - guacd
     restart: unless-stopped
 
+  # guacd chi co image amd64 -> exec format error tren aarch64.
+  # Profile nay khien no khong tu khoi dong. Termix van chay: guacd chi
+  # phuc vu RDP/VNC/telnet, con SSH thi Termix tu lam.
   guacd:
+    profiles: ["amd64-only"]
     image: guacamole/guacd:latest
     container_name: termix-guacd
     ports:

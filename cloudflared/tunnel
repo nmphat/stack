@@ -1,0 +1,177 @@
+#!/usr/bin/env python3
+"""Manage cloudflared ingress rules and their DNS records.
+
+Ingress lives in config.yml on this host. Only DNS needs Cloudflare
+credentials, so this uses a zone-scoped API token instead of cert.pem.
+"""
+import json
+import os
+import shutil
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+
+CONFIG = "/etc/cloudflared/config.yml"
+TOKEN_FILE = "/etc/cloudflared/api-token"
+DOMAIN = "3p.id.vn"
+API = "https://api.cloudflare.com/client/v4"
+
+import yaml
+
+
+def die(msg):
+    print(f"[ERR] {msg}", file=sys.stderr)
+    sys.exit(1)
+
+
+def need_root():
+    if os.geteuid() != 0:
+        die("chay voi sudo")
+
+
+def load_config():
+    with open(CONFIG) as f:
+        return yaml.safe_load(f)
+
+
+def save_config(cfg):
+    backup = f"{CONFIG}.bak-{time.strftime('%Y%m%d-%H%M%S')}"
+    shutil.copy2(CONFIG, backup)
+    with open(CONFIG, "w") as f:
+        yaml.safe_dump(cfg, f, sort_keys=False, default_flow_style=False)
+    return backup
+
+
+def validate_or_restore(backup):
+    r = subprocess.run(["cloudflared", "tunnel", "ingress", "validate"],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        shutil.copy2(backup, CONFIG)
+        die(f"config khong hop le, da khoi phuc tu {backup}\n{r.stdout}{r.stderr}")
+
+
+def restart():
+    subprocess.run(["systemctl", "restart", "cloudflared"], check=True)
+    print("[OK] cloudflared restarted")
+
+
+def api(method, path, body=None):
+    if not os.path.exists(TOKEN_FILE):
+        die(f"thieu {TOKEN_FILE} — tao API token scope 'Zone:DNS:Edit' cho {DOMAIN}")
+    token = open(TOKEN_FILE).read().strip()
+    data = json.dumps(body).encode() if body is not None else None
+    req = urllib.request.Request(f"{API}{path}", data=data, method=method,
+                                 headers={"Authorization": f"Bearer {token}",
+                                          "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            return json.load(resp)
+    except urllib.error.HTTPError as e:
+        detail = json.load(e).get("errors", e.reason)
+        die(f"Cloudflare API {e.code}: {detail}")
+
+
+def zone_id():
+    r = api("GET", f"/zones?name={DOMAIN}")
+    if not r["result"]:
+        die(f"khong tim thay zone {DOMAIN} — token co dung scope khong?")
+    return r["result"][0]["id"]
+
+
+def tunnel_uuid(cfg):
+    cred = cfg.get("credentials-file", "")
+    return os.path.basename(cred).removesuffix(".json")
+
+
+def rules(cfg):
+    return cfg.setdefault("ingress", [])
+
+
+def cmd_list():
+    cfg = load_config()
+    print(f"tunnel: {cfg.get('tunnel')}")
+    for r in rules(cfg):
+        if "hostname" in r:
+            print(f"  {r['hostname']:40} -> {r['service']}")
+        else:
+            print(f"  {'(catch-all)':40} -> {r['service']}")
+
+
+def cmd_add(sub, port):
+    need_root()
+    if not port.isdigit():
+        die("port phai la so")
+    host = f"{sub}.{DOMAIN}"
+    cfg = load_config()
+    rs = rules(cfg)
+    if any(r.get("hostname") == host for r in rs):
+        die(f"{host} da ton tai trong config")
+
+    catch_all = [r for r in rs if "hostname" not in r]
+    named = [r for r in rs if "hostname" in r]
+    named.append({"hostname": host, "service": f"http://localhost:{port}"})
+    cfg["ingress"] = named + (catch_all or [{"service": "http_status:404"}])
+
+    backup = save_config(cfg)
+    validate_or_restore(backup)
+
+    zid = zone_id()
+    target = f"{tunnel_uuid(cfg)}.cfargotunnel.com"
+    api("POST", f"/zones/{zid}/dns_records",
+        {"type": "CNAME", "name": host, "content": target, "proxied": True})
+    print(f"[OK] DNS {host} -> {target}")
+
+    restart()
+    print(f"[OK] added {host} -> localhost:{port}")
+
+
+def cmd_remove(host):
+    need_root()
+    if not host.endswith(DOMAIN):
+        host = f"{host}.{DOMAIN}"
+    cfg = load_config()
+    rs = rules(cfg)
+    if not any(r.get("hostname") == host for r in rs):
+        die(f"{host} khong co trong config")
+    cfg["ingress"] = [r for r in rs if r.get("hostname") != host]
+
+    backup = save_config(cfg)
+    validate_or_restore(backup)
+
+    zid = zone_id()
+    found = api("GET", f"/zones/{zid}/dns_records?name={host}")["result"]
+    for rec in found:
+        api("DELETE", f"/zones/{zid}/dns_records/{rec['id']}")
+        print(f"[OK] DNS record {host} deleted")
+
+    restart()
+    print(f"[OK] removed {host}")
+
+
+def main():
+    args = sys.argv[1:]
+    if not args:
+        print("usage: tunnel {add <sub> <port>|list|remove <host>|restart}")
+        sys.exit(1)
+    cmd, rest = args[0], args[1:]
+    if cmd == "list":
+        cmd_list()
+    elif cmd == "add":
+        if len(rest) != 2:
+            die("usage: tunnel add <sub> <port>")
+        cmd_add(*rest)
+    elif cmd == "remove":
+        if len(rest) != 1:
+            die("usage: tunnel remove <hostname>")
+        cmd_remove(rest[0])
+    elif cmd == "restart":
+        need_root()
+        restart()
+    else:
+        die(f"lenh khong biet: {cmd}")
+
+
+if __name__ == "__main__":
+    main()

@@ -39,3 +39,9 @@ cloudflare-tunnel/
 # Generated at runtime by pnpm start
 ecosystem.config.js
 data/
+
+# Cloudflare tunnel credentials — NEVER commit
+cloudflared/*.json
+cloudflared/cert.pem
+cloudflared/token
+cloudflared/api-token

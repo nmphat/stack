@@ -14,7 +14,6 @@ Homelab service orchestrator. PM2 manages all services via `pnpm start`.
 | termix | Docker | 5674 | `termix/` | — | `docker compose pull` |
 | hermes-webui | Git | 8787 | `hermes-webui/` | submodule nesquena/master | `stack-update.sh` |
 | firecrawl | Git+Docker | 3092 | `firecrawl/` | submodule nmphat/stack-customizations | `stack-update.sh` |
-| open-design | Git | 7456 | `open-design/` | repo nexu-io/main | `stack-update.sh` |
 | **cloak-browser** | **PM2** | **9222** | **`scripts/start-cloak-browser.sh`** | — | **auto via stack-update.sh** |
 
 ## Quick Start
@@ -97,7 +96,7 @@ PM2 systemd service is configured at `/etc/systemd/system/pm2-phat.service`. On 
 
 Stack auto-updates every 6 hours via `scripts/stack-update.sh`:
 
-- Git services (hermes-webui, firecrawl, open-design): ff-merge or rebase
+- Git services (hermes-webui, firecrawl): ff-merge or rebase
 - Forks with upstream (harness-cloak): sync upstream first
 - CloakBrowser: check for new binary
 - Post-update hooks: pnpm install, docker compose up, uv tool install
@@ -125,7 +124,6 @@ Each service has its own README.md and .env.example:
 | termix | [termix/README.md](termix/README.md) | [termix/.env.example](termix/.env.example) |
 | hermes-webui | [hermes-webui/README.md](hermes-webui/README.md) | [hermes-webui/.env.example](hermes-webui/.env.example) |
 | firecrawl | [firecrawl/README.md](firecrawl/README.md) | [firecrawl/.env.example](firecrawl/.env.example) |
-| open-design | [open-design/README.md](open-design/README.md) | [open-design/deploy/.env.example](open-design/deploy/.env.example) |
 | cloak-browser | (auto-started) | N/A |
 
 
@@ -138,7 +136,7 @@ Each service has its own README.md and .env.example:
 | Type | Example | `.gitmodules` | Update method |
 |------|---------|---------------|---------------|
 | Submodule | hermes-webui, firecrawl | ✅ Registered | `git submodule update --remote` |
-| Direct clone | harness-cloak, open-design | ❌ | `git pull` in directory |
+| Direct clone | harness-cloak | ❌ | `git pull` in directory |
 
 ### Fork vs Upstream
 
@@ -147,7 +145,6 @@ Each service has its own README.md and .env.example:
 | hermes-webui | nesquena/hermes-webui | ❌ upstream repo | N/A — pull directly |
 | firecrawl | nmphat/firecrawl | ✅ fork | ❌ no upstream remote |
 | harness-cloak | nmphat/harness-cloak | ✅ fork | ✅ upstream = browser-use/browser-harness |
-| open-design | nexu-io/open-design | ❌ upstream repo | N/A — pull directly |
 
 ### Branch Conventions
 
@@ -156,7 +153,6 @@ Each service has its own README.md and .env.example:
 | hermes-webui | master | follows upstream |
 | firecrawl | stack-customizations | our PM2 + playwright changes |
 | harness-cloak | cloak | our CloakBrowser integration |
-| open-design | main | follows upstream |
 
 ---
 
@@ -303,7 +299,6 @@ Cloudflare Turnstile, reCAPTCHA v3, DataDome, PerimeterX, Akamai, FingerprintJS,
 | hsui.3p.id.vn | Hindsight CP UI | 9991 |
 | hs.3p.id.vn | Hindsight MCP | 8890 |
 | hermes.3p.id.vn | hermes-webui | 8787 |
-| od.3p.id.vn | open-design | 7456 |
 
 Not exposed: searxng (:8888), termix (:5674), cloak-browser (:9222)
 
@@ -371,7 +366,6 @@ stack/
 │   ├── sync-upstream.sh          # Manual upstream sync
 │   └── agent-workspace/          # Domain skills + agent helpers
 │
-├── open-design/                  # [clone] nexu-io/open-design (main)
 │
 ├── portainer/                    # Docker compose config
 ├── searxng/                      # Docker compose + settings

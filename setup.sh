@@ -13,7 +13,7 @@ echo "📦 Installing wrapper deps..."
 pnpm install
 
 # Copy env examples (skip if .env exists)
-for dir in hermes-webui; do
+for dir in $(find . -maxdepth 2 -name .env.example -printf "%h\n" | sed "s|^\./||"); do
   if [ -f "$dir/.env.example" ] && [ ! -f "$dir/.env" ]; then
     cp "$dir/.env.example" "$dir/.env"
     echo "📝 Created $dir/.env from .env.example — edit with real values"

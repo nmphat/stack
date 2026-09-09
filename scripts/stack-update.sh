@@ -162,14 +162,10 @@ update_service "harness-cloak" "harness-cloak" "cloak" "upstream" \
     "uv tool install -e ~/stack/harness-cloak --force 2>/dev/null" \
     "echo skip"  # no PM2 restart needed — daemon auto-starts
 
-update_service "open-design" "open-design" "stack-customizations" "upstream" \
-    "cd ~/stack/open-design && pnpm install 2>/dev/null" \
-    "pm2 restart open-design"
-
 # ─── CloakBrowser binary update (not git-based) ────────────────
 
 log "[cloak-browser] checking binary updates..."
-CLOAK_UPDATE=$(/home/phat/.local/share/uv/tools/cloakbrowsermcp/bin/cloakbrowser update 2>&1)
+CLOAK_UPDATE=$($HOME/.local/share/uv/tools/cloakbrowsermcp/bin/cloakbrowser update 2>&1)
 if echo "$CLOAK_UPDATE" | grep -qv "Already up to date"; then
     log "[cloak-browser] binary updated — restarting PM2 service"
     NEED_RESTART="$NEED_RESTART cloak-browser"

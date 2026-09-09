@@ -1,52 +1,47 @@
 [
   {
     "name": "9router",
-    "command": "/home/phat/stack/scripts/9router.sh",
-    "cwd": "/home/phat/stack"
+    "command": "$HOME/stack/scripts/9router.sh",
+    "cwd": "$HOME/stack"
   },
   {
     "name": "portainer",
     "command": "docker compose up",
-    "cwd": "/home/phat/stack/portainer"
+    "cwd": "$HOME/stack/portainer"
   },
   {
     "name": "searxng",
     "command": "docker compose up",
-    "cwd": "/home/phat/stack/searxng"
+    "cwd": "$HOME/stack/searxng"
   },
   {
     "name": "hermes-gateway",
     "command": "hermes gateway",
-    "cwd": "/home/phat/stack"
+    "cwd": "$HOME/stack"
   },
   {
     "name": "hindsight",
     "command": "docker compose up",
-    "cwd": "/home/phat/stack/hindsight"
+    "cwd": "$HOME/stack/hindsight"
   },
   {
     "name": "termix",
     "command": "docker compose up",
-    "cwd": "/home/phat/stack/termix"
+    "cwd": "$HOME/stack/termix"
   },
   {
     "name": "hermes-webui",
-    "command": "/home/phat/stack/hermes-webui/pm2-start.sh",
-    "cwd": "/home/phat/stack/hermes-webui"
+    "command": "$HOME/stack/hermes-webui/pm2-start.sh",
+    "cwd": "$HOME/stack/hermes-webui"
   },
   {
     "name": "firecrawl",
-    "command": "/home/phat/stack/firecrawl/pm2-start.sh",
-    "cwd": "/home/phat/stack/firecrawl"
+    "command": "$HOME/stack/firecrawl/pm2-start.sh",
+    "cwd": "$HOME/stack/firecrawl"
   },
   {
     "name": "cloak-browser",
-    "command": "/home/phat/stack/scripts/start-cloak-browser.sh",
-    "cwd": "/home/phat/stack"
-  },
-  {
-    "name": "open-design",
-    "command": "/home/phat/stack/open-design/pm2-start.sh",
-    "cwd": "/home/phat/stack/open-design"
+    "command": "$HOME/stack/scripts/start-cloak-browser.sh",
+    "cwd": "$HOME/stack"
   }
 ]

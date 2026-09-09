@@ -13,8 +13,10 @@ if (!fs.existsSync(LOGS_DIR)) {
   fs.mkdirSync(LOGS_DIR, { recursive: true });
 }
 
-// Load services config
-const services = JSON.parse(fs.readFileSync(SERVICES_FILE, 'utf8'));
+// Load services config. Paths use $HOME so one repo works on every machine.
+const expand = p => p.replace(/^~(?=\/|$)/, process.env.HOME).replace(/\$HOME/g, process.env.HOME);
+const services = JSON.parse(fs.readFileSync(SERVICES_FILE, 'utf8'))
+  .map(s => ({ ...s, cwd: expand(s.cwd), command: expand(s.command) }));
 
 // Generate ecosystem.config.js
 const ecosystem = {

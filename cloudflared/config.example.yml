@@ -1,0 +1,11 @@
+# Mau cho tunnel locally-managed. File that nam o /etc/cloudflared/config.yml
+# va KHONG duoc commit — no tro toi credentials file.
+tunnel: oracle-sg
+credentials-file: /etc/cloudflared/<TUNNEL-UUID>.json
+
+ingress:
+  - hostname: oc-dokploy.3p.id.vn
+    service: http://localhost:3000
+
+  # Rule cuoi bat buoc phai la catch-all khong co hostname.
+  - service: http_status:404

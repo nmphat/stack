@@ -6,8 +6,8 @@
 # Find cloakbrowser CLI (uv tool install location)
 CLOAKBROWSER_CLI=""
 for candidate in \
-    "/home/phat/.local/share/uv/tools/cloakbrowsermcp/bin/cloakbrowser" \
-    "/home/phat/.local/bin/cloakbrowser" \
+    "$HOME/.local/share/uv/tools/cloakbrowsermcp/bin/cloakbrowser" \
+    "$HOME/.local/bin/cloakbrowser" \
     "$(which cloakbrowser 2>/dev/null)"; do
     if [ -n "$candidate" ] && [ -x "$candidate" ]; then
         CLOAKBROWSER_CLI="$candidate"
