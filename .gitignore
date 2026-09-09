@@ -45,3 +45,8 @@ cloudflared/*.json
 cloudflared/cert.pem
 cloudflared/token
 cloudflared/api-token
+
+# Beszel runtime state
+beszel/beszel_data/
+beszel/beszel_agent_data/
+beszel/beszel_socket/
