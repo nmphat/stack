@@ -25,6 +25,7 @@ of its own, so a third one would only add a layer that can disagree with them:
 | 9router, portainer, searxng, termix, hindsight | `docker compose` with `restart: unless-stopped` |
 | hermes-webui | systemd user unit from its own `docs/supervisor.md` |
 | hermes gateway | `hermes gateway install` (systemd), when it is installed |
+| desktop (XFCE over RDP) | `xrdp` systemd unit, installed on the host |
 
 `pnpm start`, `services.json` and `scripts/start.js` are the homelab's mechanism
 and are unused on that host.
@@ -44,6 +45,12 @@ VPS from colliding with the homelab in the same `3p.id.vn` zone:
 ```bash
 sudo tunnel add oc-<name> <port>
 tunnel list
+```
+
+The third argument picks the scheme. RDP is not HTTP, so it needs `tcp`:
+
+```bash
+sudo tunnel add oc-rdp 3389 tcp
 ```
 
 Anything reachable through the tunnel needs its own auth — the tunnel is not one.
@@ -153,6 +160,7 @@ Each service has its own README.md and .env.example:
 | termix | [termix/README.md](termix/README.md) | [termix/.env.example](termix/.env.example) |
 | hermes-webui | [hermes-webui/README.md](hermes-webui/README.md) | [hermes-webui/.env.example](hermes-webui/.env.example) |
 | cloak-browser | (auto-started) | N/A |
+| desktop | [desktop/README.md](desktop/README.md) | N/A — host packages, not a container |
 
 
 ---
