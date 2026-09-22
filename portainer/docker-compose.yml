@@ -6,8 +6,10 @@ services:
     container_name: portainer
     restart: always
     ports:
-      - "9000:9000"
-      - "9443:9443"
+      # Reached through the Cloudflare tunnel, so it never needs to listen
+      # on the docker bridge where other containers could talk to it.
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9443:9443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data

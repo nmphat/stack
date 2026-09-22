@@ -9,7 +9,8 @@ services:
       retries: 3
       start_period: 90s
     ports:
-      - "5674:5674"
+      # Reached through the Cloudflare tunnel only.
+      - "127.0.0.1:5674:5674"
     volumes:
       - ./data:/app/data:rw
     environment:
