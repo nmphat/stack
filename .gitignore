@@ -50,3 +50,4 @@ cloudflared/api-token
 beszel/beszel_data/
 beszel/beszel_agent_data/
 beszel/beszel_socket/
+termix/data.bak-*/
