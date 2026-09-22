@@ -154,10 +154,6 @@ update_service "hermes-webui" "hermes-webui" "master" "" \
     "cd ~/stack/hermes-webui && pnpm install 2>/dev/null" \
     "pm2 restart hermes-webui"
 
-update_service "firecrawl" "firecrawl" "stack-customizations" "" \
-    "" \
-    "cd ~/stack/firecrawl && docker compose up -d --build 2>/dev/null && pm2 restart firecrawl"
-
 update_service "harness-cloak" "harness-cloak" "cloak" "upstream" \
     "uv tool install -e ~/stack/harness-cloak --force 2>/dev/null" \
     "echo skip"  # no PM2 restart needed — daemon auto-starts
