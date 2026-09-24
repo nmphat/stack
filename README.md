@@ -13,6 +13,7 @@ Homelab service orchestrator. PM2 manages all services via `pnpm start`.
 | hindsight | Docker | 8890 | `hindsight/` | — | `docker compose pull` |
 | termix | Docker | 5674 | `termix/` | — | `docker compose pull` |
 | hermes-webui | Git | 8787 | `hermes-webui/` | submodule nesquena/master | `stack-update.sh` |
+| firecrawl | Git+Docker | 3092 | `firecrawl/` | submodule nmphat/stack-customizations | `stack-update.sh` |
 | **cloak-browser** | **PM2** | **9222** | **`scripts/start-cloak-browser.sh`** | — | **auto via stack-update.sh** |
 
 ## Oracle VPS (`oc-` hosts)
@@ -91,6 +92,7 @@ pm2 list
 
 # Restart a specific service
 pm2 restart hermes-webui
+pm2 restart firecrawl
 
 # Stop a specific service
 pm2 stop searxng
@@ -98,6 +100,7 @@ pm2 stop searxng
 # View logs
 pm2 logs                    # all services
 pm2 logs hermes-webui       # single service
+pm2 logs firecrawl --lines 50
 
 # Monitor (CPU/memory)
 pm2 monit
@@ -133,6 +136,7 @@ PM2 systemd service is configured at `/etc/systemd/system/pm2-phat.service`. On 
 
 Stack auto-updates every 6 hours via `scripts/stack-update.sh`:
 
+- Git services (hermes-webui, firecrawl): ff-merge or rebase
 - Forks with upstream (harness-cloak): sync upstream first
 - CloakBrowser: check for new binary
 - Post-update hooks: pnpm install, docker compose up, uv tool install
@@ -159,6 +163,7 @@ Each service has its own README.md and .env.example:
 | hindsight | [hindsight/README.md](hindsight/README.md) | [hindsight/.env.example](hindsight/.env.example) |
 | termix | [termix/README.md](termix/README.md) | [termix/.env.example](termix/.env.example) |
 | hermes-webui | [hermes-webui/README.md](hermes-webui/README.md) | [hermes-webui/.env.example](hermes-webui/.env.example) |
+| firecrawl | [firecrawl/README.md](firecrawl/README.md) | [firecrawl/.env.example](firecrawl/.env.example) |
 | cloak-browser | (auto-started) | N/A |
 | desktop | [desktop/README.md](desktop/README.md) | N/A — host packages, not a container |
 
@@ -171,6 +176,7 @@ Each service has its own README.md and .env.example:
 
 | Type | Example | `.gitmodules` | Update method |
 |------|---------|---------------|---------------|
+| Submodule | hermes-webui, firecrawl | ✅ Registered | `git submodule update --remote` |
 | Direct clone | harness-cloak | ❌ | `git pull` in directory |
 
 ### Fork vs Upstream
@@ -178,6 +184,7 @@ Each service has its own README.md and .env.example:
 | Service | Repo | Fork? | Upstream tracking |
 |---------|------|-------|-------------------|
 | hermes-webui | nesquena/hermes-webui | ❌ upstream repo | N/A — pull directly |
+| firecrawl | nmphat/firecrawl | ✅ fork | ❌ no upstream remote |
 | harness-cloak | nmphat/harness-cloak | ✅ fork | ✅ upstream = browser-use/browser-harness |
 
 ### Branch Conventions
@@ -185,6 +192,7 @@ Each service has its own README.md and .env.example:
 | Service | Branch | Why |
 |---------|--------|-----|
 | hermes-webui | master | follows upstream |
+| firecrawl | stack-customizations | our PM2 + playwright changes |
 | harness-cloak | cloak | our CloakBrowser integration |
 
 ---
@@ -390,6 +398,7 @@ stack/
 │   ├── pm2-start.sh              # PM2 launcher (untracked)
 │   └── .env                      # Secrets (gitignored)
 │
+├── firecrawl/                    # [submodule] nmphat/firecrawl (stack-customizations)
 │   ├── pm2-start.sh              # PM2 launcher
 │   └── docker-compose.override.yaml # Stack-specific overrides
 │

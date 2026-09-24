@@ -35,6 +35,11 @@
     "cwd": "$HOME/stack/hermes-webui"
   },
   {
+    "name": "firecrawl",
+    "command": "$HOME/stack/firecrawl/pm2-start.sh",
+    "cwd": "$HOME/stack/firecrawl"
+  },
+  {
     "name": "cloak-browser",
     "command": "$HOME/stack/scripts/start-cloak-browser.sh",
     "cwd": "$HOME/stack"

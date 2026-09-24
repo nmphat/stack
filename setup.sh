@@ -23,6 +23,7 @@ done
 echo ""
 echo "⚠️  Check .env files for Docker services:"
 echo "   hindsight/.env"
+echo "   firecrawl/.env"
 echo "   (create manually if missing)"
 echo ""
 echo "✅ Setup complete. Run 'pnpm start' to launch all services."
