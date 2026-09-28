@@ -18,6 +18,10 @@ Homelab service orchestrator. PM2 manages all services via `pnpm start`.
 
 ## Oracle VPS (`oc-` hosts)
 
+Full operations handbook for that box: [OCI.md](OCI.md). It covers access,
+the Always Free limits and the reclamation rule, every service and its port,
+the Hermes/Hindsight bank setup and the traps worth remembering.
+
 The Oracle box does not run PM2. Every service there already ships a supervisor
 of its own, so a third one would only add a layer that can disagree with them:
 
