@@ -23,6 +23,23 @@ Everything below is installed onto the host.
 | `firefox` | 156.x | From `packages.mozilla.org`, a real .deb. The Ubuntu package is a snap transitional |
 | `code` | 1.138.x | From `packages.microsoft.com`, arm64 is in the same suite |
 
+Ubuntu's own `firefox` package is a snap transitional carrying an epoch
+(`1:1snap1-0ubuntu5`), so its version string outranks every Mozilla build. A
+priority pin on the Mozilla origin alone is not enough: if an `apt update` ever
+misses the Mozilla index, Ubuntu's package becomes the only candidate and
+silently replaces the deb with a snap wrapper. Unattended-upgrades did exactly
+that on 2026-09-24. `/etc/apt/preferences.d/mozilla` therefore also pins it
+negative:
+
+```
+Package: firefox*
+Pin: release o=Ubuntu
+Pin-Priority: -1
+```
+
+Check it holds with `apt-cache policy firefox`: Ubuntu's version should show
+priority `-1`, and the candidate should be the Mozilla build.
+
 All of these have arm64 builds. Google Chrome also has an official arm64 Linux
 build with Widevine as of 2026-07-30, if Firefox is ever not enough:
 
