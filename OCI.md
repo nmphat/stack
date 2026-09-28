@@ -167,6 +167,31 @@ is ignored silently.
 The WebUI works the same way: it sets `TERMINAL_CWD` per session, and
 `resolve_agent_cwd()` reads `_SESSION_CWD` → `TERMINAL_CWD` → `os.getcwd()`.
 
+## Claude Code
+
+Installed with the native installer, so it carries its own runtime and does not
+depend on the Node that Hermes bundles:
+
+```bash
+curl -fsSL https://claude.ai/install.sh -o /tmp/claude-install.sh   # read it first
+bash /tmp/claude-install.sh                                         # never as root
+```
+
+The binary lands in `~/.local/bin/claude`. Ubuntu's stock `.profile` already
+puts `~/.local/bin` on the PATH of a login shell, and `.bashrc` line 124 does
+the same for an interactive one. Neither runs for a plain
+`ssh oc 'claude ...'`, so scripts need the full path.
+
+There is no self-hosted web interface. `claude.ai/code` runs its sessions in
+Anthropic's own cloud, not on this box. To drive Claude Code here through a
+browser, use the terminal that is already published: Termix at
+`oc-termix.3p.id.vn`, or the desktop session over RDP. The desktop also has
+VS Code, so the Claude Code extension works there.
+
+First run prints an OAuth URL. From the desktop session Firefox opens it
+directly; from Termix, copy the URL into a local browser and paste the code
+back.
+
 ## Desktop
 
 XFCE over RDP on the host itself, so it can be used as an ordinary workstation.
