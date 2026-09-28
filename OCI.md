@@ -167,7 +167,9 @@ is ignored silently.
 The WebUI works the same way: it sets `TERMINAL_CWD` per session, and
 `resolve_agent_cwd()` reads `_SESSION_CWD` → `TERMINAL_CWD` → `os.getcwd()`.
 
-## Claude Code
+## Coding agents
+
+### Claude Code
 
 Installed with the native installer, so it carries its own runtime and does not
 depend on the Node that Hermes bundles:
@@ -191,6 +193,34 @@ VS Code, so the Claude Code extension works there.
 First run prints an OAuth URL. From the desktop session Firefox opens it
 directly; from Termix, copy the URL into a local browser and paste the code
 back.
+
+### Command Code
+
+A separate paid product (`commandcode.ai`), installed from npm:
+
+```bash
+npm i -g command-code
+```
+
+It needs Node 22 or newer; this box has v24 from nvm at
+`~/.nvm/versions/node/v24.20.0`, which is independent of the Node that Hermes
+bundles. The global prefix is that nvm directory, so switching Node versions
+with nvm leaves the package behind — reinstall it after any `nvm install`.
+
+The package installs four names for the same entry point: `cmd`, `cmdc`,
+`command-code` and `commandcode`. `cmd` is a very generic name; nothing else on
+this box claims it today.
+
+```bash
+command-code status    # authentication state
+command-code login     # opens a browser URL
+```
+
+Because nvm puts its bin directory on the PATH from `.bashrc`, these resolve in
+an interactive or login shell but not in a plain `ssh oc 'command-code ...'`.
+
+`/import claude` inside a session copies skills, agents, commands, MCP servers
+and memory across from the Claude Code setup rather than configuring it twice.
 
 ## Desktop
 
