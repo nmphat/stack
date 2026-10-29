@@ -67,13 +67,12 @@ anything above them, so check the shape before creating a second instance.
 |---|---|---|---|---|
 | portainer | 9000, 9443 | `127.0.0.1` | `oc-portainer` | `docker compose` |
 | termix | 5674 | `127.0.0.1` | `oc-termix` | `docker compose` |
-| hindsight API | 8890 | `0.0.0.0` | — | `docker compose` |
-| hindsight UI | 9991 | `0.0.0.0` | `oc-hindsight` | `docker compose` |
 | 9router | 20128 | `0.0.0.0` | `oc-9router` | `docker compose` |
 | searxng | 8888 | `0.0.0.0` | — | `docker compose` |
 | beszel | 8090 | `127.0.0.1` | `oc-cp` | `docker compose` |
 | firecrawl api | 3092 | `0.0.0.0` | — | `docker compose` |
-| hermes-webui | 8787 | `127.0.0.1` | `oc-hermes` | systemd user unit |
+| dsh | 3080 | `127.0.0.1` | `oc-dsh` | systemd user unit |
+| n8n | 5678 | `127.0.0.1` | `oc-n8n` | `docker compose` |
 | xrdp | 3389 | `127.0.0.1` | `oc-rdp` (`tcp://`) | systemd |
 
 Every tunnel hostname is prefixed `oc-` so the box cannot collide with the
@@ -90,12 +89,12 @@ reboot:
 
 ```bash
 sudo loginctl enable-linger ubuntu
-systemctl --user enable --now hermes-webui.service
+systemctl --user enable --now dsh-web.service
 ```
 
 ## Helper scripts
 
-Both need `sudo` and live in `/usr/local/bin`.
+The tunnel helper needs `sudo` and lives in `/usr/local/bin`.
 
 ```bash
 sudo tunnel add <sub> <port> [http|https|tcp]   # third argument defaults to http
@@ -109,70 +108,45 @@ sudo tunnel restart
 restores the previous config if validation fails. RDP and anything else that is
 not HTTP needs the `tcp` scheme.
 
+## DeepSeek Harness (dsh)
+
+The web UI on `oc-dsh.3p.id.vn`. Installed from npm into `~/stack/dsh`, so it
+carries its own `node_modules` and does not share the system Node:
+
 ```bash
-project add <path>    # register a directory in hermes' projects.db
-project list
-project which
-project remove <path>
+cd ~/stack/dsh
+npm install                      # installs the pinned version
+npm update @deepseek-ai/dsh      # bump within the pinned range
+systemctl --user restart dsh-web
 ```
 
-`project` lives in `stack/scripts/project` and is symlinked into
-`/usr/local/bin`. It re-executes itself under
-`~/.hermes/hermes-agent/venv/bin/python`, because the distribution's SQLite 3.45
-prints a WAL reset warning against a database written by 3.53.
+| | |
+|---|---|
+| Port | `3080` (loopback) |
+| Tunnel | `oc-dsh` |
+| Supervisor | systemd user unit `dsh-web.service` |
+| Home | `~/.dsh` (profiles, sessions, settings) |
 
-## Hermes and Hindsight
+The unit at `~/.config/systemd/user/dsh-web.service` pins `PATH` to nvm's Node
+and `DSH_HOME` to `~/.dsh`, and reads `~/stack/dsh/.env` for
+`OC_9ROUTER_API_KEY`. That key belongs to the stack's own 9router gateway
+(`http://localhost:20128/v1`), which is the route the Web UI and the headless
+profile both use — not the DeepSeek SaaS endpoint. The startup log prints the
+entry URL including the launch token; that token is a process credential, so
+keep it private.
 
-Hermes runs from `~/.hermes`, the CLI is at `~/.local/bin/hermes`. It is not on
-the PATH of a non-interactive SSH command, so scripts need the full path.
-
-`~/.hermes/hermes-agent` sits on branch **`hindsight-per-project`**, a
-cherry-pick of upstream PR #97620 onto the release commit. That patch is what
-makes the memory bank follow the workspace. Keep
-`updates.parked_branch_strategy: update_in_place` in `config.yaml`: without it
-`hermes update` switches back to `main` and silently disables the patch.
-
-Bank resolution, in order:
-
-1. `HINDSIGHT_BANK_ID` in the environment (CLI override)
-2. `.hindsight/config.toml` in the current directory or a parent
-3. `bank_id_template` in `~/.hindsight/config.json`
-4. the hardcoded default
-
-`~/.hindsight/config.json` holds:
-
-```json
-{"mode": "local_external", "bank_id_template": "bank-{workspace}", "bank_id": "hermes"}
-```
-
-Two things that do **not** work, and cost a lot of time to rediscover: the
-`memory.hindsight` block in `~/.hermes/config.yaml` is display-only — the
-provider's `_load_config()` never reads `config.yaml` — and AGENTS.md cannot
-move the bank either, because the bank is resolved before the agent reads any
-instructions.
-
-The workspace convention is a wrapper directory holding docs and context with
-several repositories cloned inside it, so one bank covers a whole product:
-
-```
-~/workspace/bmt-mgmt-wrapper/     -> bank-bmt-mgmt-wrapper
-  .hindsight/config.toml
-  bmt-fe/  bmt-be/  bmt-admin-fe/  bmt-admin-be/
-```
-
-Committing `.hindsight/config.toml` makes the bank travel with the repository,
-but only to machines that also carry the cherry-pick. On stock Hermes the file
-is ignored silently.
-
-The WebUI works the same way: it sets `TERMINAL_CWD` per session, and
-`resolve_agent_cwd()` reads `_SESSION_CWD` → `TERMINAL_CWD` → `os.getcwd()`.
+`dsh headless "<prompt>"` runs one task and prints the result, which is what
+`scripts/stack-update.sh` uses for conflict resolution. The headless profile
+carries the same provider patch as the web profile
+(`~/.dsh/profiles/headless/cordis.patch.yml`); without it the call dies with
+`MISSING_CREDENTIAL` on the `deepseek-official` route.
 
 ## Coding agents
 
 ### Claude Code
 
 Installed with the native installer, so it carries its own runtime and does not
-depend on the Node that Hermes bundles:
+depend on any Node the stack installs:
 
 ```bash
 curl -fsSL https://claude.ai/install.sh -o /tmp/claude-install.sh   # read it first
@@ -203,8 +177,8 @@ npm i -g command-code
 ```
 
 It needs Node 22 or newer; this box has v24 from nvm at
-`~/.nvm/versions/node/v24.20.0`, which is independent of the Node that Hermes
-bundles. The global prefix is that nvm directory, so switching Node versions
+`~/.nvm/versions/node/v24.20.0`. The global prefix is that nvm directory, so
+switching Node versions
 with nvm leaves the package behind — reinstall it after any `nvm install`.
 
 The package installs four names for the same entry point: `cmd`, `cmdc`,
@@ -257,7 +231,7 @@ sudo systemctl status cloudflared
 - Services listen on `127.0.0.1` unless another container genuinely needs them.
   Portainer especially: it holds the docker socket, which is host root.
 - `~/.bashrc` returns early for non-interactive shells. Anything appended below
-  that line never runs — this has already broken nvm once and a hermes wrapper
+  that line never runs — this has already broken nvm once and a CLI wrapper
   once. Put additions above the early return.
 - `rsync` and `scp` carry git's `skip-worktree` bit inside `.git/`, which can
   hide a modified file on the destination. Clear the bit before trusting
@@ -271,8 +245,8 @@ sudo systemctl status cloudflared
 ## Repository layout
 
 `~/stack` is `git@github.com:nmphat/stack.git`, branch `vps-reuse`. Submodules:
-`hermes-webui` (upstream nesquena/master), `firecrawl` (fork
-nmphat/stack-customizations), `harness-cloak` (fork nmphat/cloak).
+`firecrawl` (fork nmphat/stack-customizations), `harness-cloak` (fork
+nmphat/cloak).
 
 Each service directory carries its own `README.md` and `.env.example`. Fork
 customisations are documented in the fork's `STACK.md`, not its `README.md`, so

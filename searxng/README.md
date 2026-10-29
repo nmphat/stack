@@ -47,4 +47,4 @@ docker compose up -d
 
 ## Not Exposed via Tunnel
 
-SearXNG runs localhost only. Use via Hermes `web_search` tool or direct access.
+SearXNG runs localhost only. Use via the agent's `web_search` tool or direct access.

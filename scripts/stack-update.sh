@@ -1,12 +1,12 @@
 #!/bin/bash
 # stack-update.sh — Auto-update all git-based stack services.
 # Exit 0: all clean. Exit 1: conflicts need agent resolution.
-# Stdout: structured report for Hermes cron parsing.
+# Stdout: structured report for cron/agent parsing.
 #
 # Flow per service:
 #   1. git fetch + ff-only merge
 #   2. If ff fails → git rebase
-#   3. If rebase conflicts → abort, report, trigger Hermes agent fallback
+#   3. If rebase conflicts → abort, report, trigger dsh headless fallback
 #   4. Post-update: rebuild/reinstall if needed, restart PM2 service
 #
 # Conflict resolution prompts: .conflict-resolve.md
@@ -19,7 +19,7 @@ UPDATED=""
 UP_TO_DATE=""
 ERRORS=""
 NEED_RESTART=""
-HERMES_FALLBACK=""
+AGENT_FALLBACK=""
 LOG_FILE="$HOME/stack/logs/stack-update.log"
 RESOLVE_FILE="$HOME/stack/.conflict-resolve.md"
 mkdir -p "$(dirname "$LOG_FILE")"
@@ -86,7 +86,7 @@ update_service() {
                 local conflict_files
                 conflict_files=$(git diff --name-only --diff-filter=U 2>/dev/null | tr '\n' ',')
                 CONFLICTS="$CONFLICTS $name:upstream_rebase:[$conflict_files]"
-                HERMES_FALLBACK="$HERMES_FALLBACK $name"
+                AGENT_FALLBACK="$AGENT_FALLBACK $name"
                 git rebase --abort 2>/dev/null || true
                 log "[$name] UPSTREAM REBASE CONFLICT: $conflict_files"
                 cd ~/stack
@@ -121,9 +121,9 @@ update_service() {
             local conflict_files
             conflict_files=$(git diff --name-only --diff-filter=U 2>/dev/null | tr '\n' ',')
             CONFLICTS="$CONFLICTS $name:[$conflict_files]"
-            HERMES_FALLBACK="$HERMES_FALLBACK $name"
+            AGENT_FALLBACK="$AGENT_FALLBACK $name"
             git rebase --abort 2>/dev/null || true
-            log "[$name] CONFLICT: $conflict_files — queued for Hermes agent resolution"
+            log "[$name] CONFLICT: $conflict_files — queued for dsh agent resolution"
         fi
     fi
 
@@ -150,10 +150,6 @@ update_service() {
 # ─── Update each service ───────────────────────────────────────
 
 # Git-based services (submodules + forks)
-update_service "hermes-webui" "hermes-webui" "master" "" \
-    "cd ~/stack/hermes-webui && pnpm install 2>/dev/null" \
-    "pm2 restart hermes-webui"
-
 update_service "firecrawl" "firecrawl" "stack-customizations" "" \
     "" \
     "cd ~/stack/firecrawl && docker compose up -d --build 2>/dev/null && pm2 restart firecrawl"
@@ -165,14 +161,21 @@ update_service "harness-cloak" "harness-cloak" "cloak" "upstream" \
 # ─── CloakBrowser binary update (not git-based) ────────────────
 
 log "[cloak-browser] checking binary updates..."
-CLOAK_UPDATE=$($HOME/.local/share/uv/tools/cloakbrowsermcp/bin/cloakbrowser update 2>&1)
-if echo "$CLOAK_UPDATE" | grep -qv "Already up to date"; then
-    log "[cloak-browser] binary updated — restarting PM2 service"
-    NEED_RESTART="$NEED_RESTART cloak-browser"
-    UPDATED="$UPDATED cloak-browser:binary"
+CLOAK_BIN="$HOME/.local/share/uv/tools/cloakbrowsermcp/bin/cloakbrowser"
+if [ ! -x "$CLOAK_BIN" ]; then
+    log "[cloak-browser] not installed on this host — skipping"
+elif CLOAK_UPDATE=$("$CLOAK_BIN" update 2>&1); then
+    if echo "$CLOAK_UPDATE" | grep -qv "Already up to date"; then
+        log "[cloak-browser] binary updated — restarting PM2 service"
+        NEED_RESTART="$NEED_RESTART cloak-browser"
+        UPDATED="$UPDATED cloak-browser:binary"
+    else
+        UP_TO_DATE="$UP_TO_DATE cloak-browser"
+        log "[cloak-browser] binary up-to-date"
+    fi
 else
-    UP_TO_DATE="$UP_TO_DATE cloak-browser"
-    log "[cloak-browser] binary up-to-date"
+    ERRORS="$ERRORS cloak-browser:update_failed"
+    log "[cloak-browser] update command failed"
 fi
 
 # ─── Restart changed services ──────────────────────────────────
@@ -193,27 +196,44 @@ echo "UP_TO_DATE=$UP_TO_DATE"
 echo "CONFLICTS=$CONFLICTS"
 echo "ERRORS=$ERRORS"
 echo "NEED_RESTART=$NEED_RESTART"
-echo "HERMES_FALLBACK=$HERMES_FALLBACK"
+echo "AGENT_FALLBACK=$AGENT_FALLBACK"
 echo "---END-REPORT---"
 
-# ─── Hermes agent fallback for conflicts ────────────────────────
+# ─── dsh agent fallback for conflicts ──────────────────────────
 
-if [ -n "$HERMES_FALLBACK" ]; then
-    log "Conflicts detected in: $HERMES_FALLBACK"
-    log "Triggering Hermes agent for conflict resolution..."
+DSH_BIN="$HOME/stack/dsh/node_modules/.bin/dsh"
 
-    for svc in $HERMES_FALLBACK; do
+if [ -n "$AGENT_FALLBACK" ]; then
+    log "Conflicts detected in: $AGENT_FALLBACK"
+
+    if [ ! -x "$DSH_BIN" ]; then
+        log "dsh not installed at $DSH_BIN — resolve the conflicts by hand"
+        exit 1
+    fi
+
+    log "Triggering dsh headless for conflict resolution..."
+
+    # The headless profile authenticates against the stack's 9router gateway,
+    # so the key has to be in the environment. dsh reads it from OC_9ROUTER_API_KEY.
+    if [ -f "$HOME/stack/dsh/.env" ]; then
+        set -a
+        # shellcheck disable=SC1091
+        . "$HOME/stack/dsh/.env"
+        set +a
+    fi
+
+    for svc in $AGENT_FALLBACK; do
         prompt=$(get_resolve_prompt "$svc")
         if [ -z "$prompt" ]; then
             prompt="Git rebase conflict in ~/stack/$svc. Resolve the conflict: cd ~/stack/$svc, inspect conflicted files, prefer source of truth (upstream), preserve local customizations, complete rebase, verify build."
         fi
 
-        log "[$svc] calling Hermes agent..."
-        hermes chat -q "$prompt" 2>&1 | tee -a "$LOG_FILE" &
+        log "[$svc] calling dsh headless..."
+        DSH_HOME="$HOME/.dsh" "$DSH_BIN" headless "$prompt" 2>&1 | tee -a "$LOG_FILE" &
     done
 
     wait
-    log "Hermes agent conflict resolution complete."
+    log "dsh conflict resolution complete."
     exit 1
 fi
 

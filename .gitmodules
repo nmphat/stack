@@ -1,7 +1,3 @@
-[submodule "hermes-webui"]
-	path = hermes-webui
-	url = https://github.com/nesquena/hermes-webui.git
-	branch = master
 [submodule "firecrawl"]
 	path = firecrawl
 	url = https://github.com/nmphat/firecrawl.git

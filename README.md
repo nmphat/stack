@@ -9,10 +9,8 @@ Homelab service orchestrator. PM2 manages all services via `pnpm start`.
 | 9router | CLI | 20128 | `scripts/9router.sh` | — | manual |
 | portainer | Docker | 9000 | `portainer/` | — | `docker compose pull` |
 | searxng | Docker | 8888 | `searxng/` | — | `docker compose pull` |
-| hermes-gateway | CLI | — | `hermes gateway` | — | `hermes update` |
-| hindsight | Docker | 8890 | `hindsight/` | — | `docker compose pull` |
 | termix | Docker | 5674 | `termix/` | — | `docker compose pull` |
-| hermes-webui | Git | 8787 | `hermes-webui/` | submodule nesquena/master | `stack-update.sh` |
+| dsh | Git+systemd | 3080 | `dsh/` | npm `@deepseek-ai/dsh` | `npm update` |
 | firecrawl | Git+Docker | 3092 | `firecrawl/` | submodule nmphat/stack-customizations | `stack-update.sh` |
 | **cloak-browser** | **PM2** | **9222** | **`scripts/start-cloak-browser.sh`** | — | **auto via stack-update.sh** |
 
@@ -20,16 +18,15 @@ Homelab service orchestrator. PM2 manages all services via `pnpm start`.
 
 Full operations handbook for that box: [OCI.md](OCI.md). It covers access,
 the Always Free limits and the reclamation rule, every service and its port,
-the Hermes/Hindsight bank setup and the traps worth remembering.
+the dsh setup and the traps worth remembering.
 
 The Oracle box does not run PM2. Every service there already ships a supervisor
 of its own, so a third one would only add a layer that can disagree with them:
 
 | Service | Supervised by |
 |---|---|
-| 9router, portainer, searxng, termix, hindsight | `docker compose` with `restart: unless-stopped` |
-| hermes-webui | systemd user unit from its own `docs/supervisor.md` |
-| hermes gateway | `hermes gateway install` (systemd), when it is installed |
+| 9router, portainer, searxng, termix | `docker compose` with `restart: unless-stopped` |
+| dsh | systemd user unit `dsh-web.service` |
 | desktop (XFCE over RDP) | `xrdp` systemd unit, installed on the host |
 
 `pnpm start`, `services.json` and `scripts/start.js` are the homelab's mechanism
@@ -39,7 +36,7 @@ The systemd unit runs as the `ubuntu` user, so boot start needs lingering:
 
 ```bash
 sudo loginctl enable-linger ubuntu
-systemctl --user enable --now hermes-webui.service
+systemctl --user enable --now dsh-web.service
 ```
 
 Nothing is published by binding to a public interface. Services listen on
@@ -95,7 +92,6 @@ pnpm stop
 pm2 list
 
 # Restart a specific service
-pm2 restart hermes-webui
 pm2 restart firecrawl
 
 # Stop a specific service
@@ -103,7 +99,7 @@ pm2 stop searxng
 
 # View logs
 pm2 logs                    # all services
-pm2 logs hermes-webui       # single service
+pm2 logs firecrawl          # single service
 pm2 logs firecrawl --lines 50
 
 # Monitor (CPU/memory)
@@ -140,11 +136,11 @@ PM2 systemd service is configured at `/etc/systemd/system/pm2-phat.service`. On 
 
 Stack auto-updates every 6 hours via `scripts/stack-update.sh`:
 
-- Git services (hermes-webui, firecrawl): ff-merge or rebase
+- Git services (firecrawl): ff-merge or rebase
 - Forks with upstream (harness-cloak): sync upstream first
 - CloakBrowser: check for new binary
 - Post-update hooks: pnpm install, docker compose up, uv tool install
-- Conflict resolution: auto via Hermes agent from `.conflict-resolve.md`
+- Conflict resolution: auto via `dsh headless` from `.conflict-resolve.md`
 
 Manual run:
 
@@ -163,10 +159,8 @@ Each service has its own README.md and .env.example:
 | 9router | [9router/README.md](9router/README.md) | [9router/.env.example](9router/.env.example) |
 | portainer | [portainer/README.md](portainer/README.md) | [portainer/.env.example](portainer/.env.example) |
 | searxng | [searxng/README.md](searxng/README.md) | [searxng/.env.example](searxng/.env.example) |
-| hermes-gateway | (hermes CLI) | N/A |
-| hindsight | [hindsight/README.md](hindsight/README.md) | [hindsight/.env.example](hindsight/.env.example) |
 | termix | [termix/README.md](termix/README.md) | [termix/.env.example](termix/.env.example) |
-| hermes-webui | [hermes-webui/README.md](hermes-webui/README.md) | [hermes-webui/.env.example](hermes-webui/.env.example) |
+| dsh | [dsh/README.md](dsh/README.md) | [dsh/.env.example](dsh/.env.example) |
 | firecrawl | [firecrawl/README.md](firecrawl/README.md) | [firecrawl/.env.example](firecrawl/.env.example) |
 | cloak-browser | (auto-started) | N/A |
 | desktop | [desktop/README.md](desktop/README.md) | N/A — host packages, not a container |
@@ -180,14 +174,13 @@ Each service has its own README.md and .env.example:
 
 | Type | Example | `.gitmodules` | Update method |
 |------|---------|---------------|---------------|
-| Submodule | hermes-webui, firecrawl | ✅ Registered | `git submodule update --remote` |
+| Submodule | firecrawl | ✅ Registered | `git submodule update --remote` |
 | Direct clone | harness-cloak | ❌ | `git pull` in directory |
 
 ### Fork vs Upstream
 
 | Service | Repo | Fork? | Upstream tracking |
 |---------|------|-------|-------------------|
-| hermes-webui | nesquena/hermes-webui | ❌ upstream repo | N/A — pull directly |
 | firecrawl | nmphat/firecrawl | ✅ fork | ❌ no upstream remote |
 | harness-cloak | nmphat/harness-cloak | ✅ fork | ✅ upstream = browser-use/browser-harness |
 
@@ -195,7 +188,6 @@ Each service has its own README.md and .env.example:
 
 | Service | Branch | Why |
 |---------|--------|-----|
-| hermes-webui | master | follows upstream |
 | firecrawl | stack-customizations | our PM2 + playwright changes |
 | harness-cloak | cloak | our CloakBrowser integration |
 
@@ -212,7 +204,7 @@ stack-update.sh (cron every 6h)
   │   1. git fetch origin
   │   2. git merge --ff-only origin/<branch>
   │   3. If ff fails → git rebase origin/<branch>
-  │   4. If rebase conflicts → abort + Hermes agent fallback
+  │   4. If rebase conflicts → abort + dsh headless fallback
   │   5. Post-update hooks (pnpm install, uv tool install, docker compose up)
   │   6. PM2 restart
   │
@@ -231,7 +223,7 @@ stack-update.sh (cron every 6h)
 
 ### Conflict Resolution
 
-When rebase fails, `stack-update.sh` reads `.conflict-resolve.md` for per-service prompts and calls Hermes agent automatically.
+When rebase fails, `stack-update.sh` reads `.conflict-resolve.md` for per-service prompts and calls `dsh headless` automatically.
 
 **Principle: Source of truth = upstream repo.**
 
@@ -274,7 +266,7 @@ harness-cloak daemon (browser-harness fork)
     ↓ IPC
 helpers.py + agent_helpers.py + domain-skills/
     ↓
-Hermes agent (via terminal tool or browser.cdp_url)
+agent (terminal tool, or any CDP client on 9222)
 ```
 
 ### Our customizations (branch `cloak`)
@@ -300,9 +292,9 @@ cd ~/stack/harness-cloak
 ```bash
 # CloakBrowser auto-starts via PM2 on CDP port 9222
 
-# Via Hermes config (Layer 1 — automatic)
-hermes config set browser.cdp_url "http://127.0.0.1:9222"
-# browser_navigate, browser_snapshot, browser_click use CloakBrowser directly
+# Via CDP (Layer 1 — automatic)
+# Point the agent's browser tools at http://127.0.0.1:9222 and they drive
+# CloakBrowser directly — no per-call command.
 
 # Via CLI (Layer 2 — advanced, self-healing)
 BU_CDP_URL=http://127.0.0.1:9222 harness-cloak <<'PY'
@@ -341,9 +333,7 @@ Cloudflare Turnstile, reCAPTCHA v3, DataDome, PerimeterX, Akamai, FingerprintJS,
 |--------|---------|------|
 | router.3p.id.vn | 9router | 20128 |
 | portainer.3p.id.vn | portainer | 9000 |
-| hsui.3p.id.vn | Hindsight CP UI | 9991 |
-| hs.3p.id.vn | Hindsight MCP | 8890 |
-| hermes.3p.id.vn | hermes-webui | 8787 |
+| dsh.3p.id.vn | dsh | 3080 |
 
 Not exposed: searxng (:8888), termix (:5674), cloak-browser (:9222)
 
@@ -353,15 +343,15 @@ Not exposed: searxng (:8888), termix (:5674), cloak-browser (:9222)
 
 ### Bot Detection Test
 
-Hermes `browser_*` via CDP → CloakBrowser:
+Agent `browser_*` tools via CDP → CloakBrowser:
 ```json
 {"isBot": false, "hasBotUserAgent": false, "hasWebdriverTrue": false, "isPlaywright": false, "hasInconsistentChromeObject": false, "isHeadlessChrome": false, "isAutomatedWithCDP": false, ...}
 ```
 20/20 signals = false. "You are human!"
 
-### Comparison: Playwright vs Hermes CDP vs harness-cloak
+### Comparison: Playwright vs CDP browser tools vs harness-cloak
 
-| | Playwright (default) | Hermes CDP | harness-cloak |
+| | Playwright (default) | CDP browser tools | harness-cloak |
 |---|---|---|---|
 | Bot detection | ❌ Detected | ✅ Undetected | ✅ Undetected |
 | Cloudflare | ❌ Blocked | ✅ Passes | ✅ Passes |
@@ -374,8 +364,8 @@ Hermes `browser_*` via CDP → CloakBrowser:
 
 | Scenario | Use |
 |---|---|
-| Normal browsing | Hermes browser_* (fast, ref-based) |
-| Bot-protected sites | Hermes browser_* (CDP → CloakBrowser) |
+| Normal browsing | CDP browser tools (fast, ref-based) |
+| Bot-protected sites | CDP browser tools (→ CloakBrowser) |
 | Raw CDP / network intercept | harness-cloak via terminal |
 | Complex sites, self-healing | harness-cloak + domain skills |
 
@@ -391,16 +381,12 @@ stack/
 │   ├── remove.js                 # Remove a service
 │   ├── 9router.sh                # Router startup
 │   ├── start-cloak-browser.sh    # CloakBrowser PM2 startup
-│   └── stack-update.sh           # Auto-update with Hermes fallback
+│   └── stack-update.sh           # Auto-update with dsh fallback
 ├── services.json                 # Service definitions (PM2)
 ├── setup.sh                      # First-run setup (submodule init + pnpm install)
 ├── .conflict-resolve.md          # Per-service conflict resolution prompts
 ├── .gitmodules                   # Submodule definitions
 ├── README.md                     # This file
-│
-├── hermes-webui/                 # [submodule] nesquena/hermes-webui (master)
-│   ├── pm2-start.sh              # PM2 launcher (untracked)
-│   └── .env                      # Secrets (gitignored)
 │
 ├── firecrawl/                    # [submodule] nmphat/firecrawl (stack-customizations)
 │   ├── pm2-start.sh              # PM2 launcher
@@ -414,8 +400,9 @@ stack/
 │
 ├── portainer/                    # Docker compose config
 ├── searxng/                      # Docker compose + settings
-├── hindsight/                    # Docker compose config
 ├── termix/                       # Docker compose config
+├── dsh/                         # DeepSeek Harness Web UI (npm, systemd user unit)
+├── n8n/                          # Docker compose config
 ├── logs/                         # PM2 logs (gitignored)
 └── data/                         # Runtime data (gitignored)
 ```

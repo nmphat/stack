@@ -11,8 +11,6 @@ logs/
 
 # Data volumes
 termix/data/
-hindsight/mem0-export.json
-hindsight/openmemory-export.json
 
 # PM2 state
 .pm2/
@@ -26,8 +24,6 @@ dump.pm2
 *~
 .DS_Store
 
-# Hermes agent local state
-.hermes/
 .claude/
 
 # Inactive services (not managed by stack)

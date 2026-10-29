@@ -5,8 +5,8 @@ workstation: browser with persistent logins, VS Code, an office suite, a visible
 mouse pointer.
 
 This is the only service in the stack that is **not** a container. The desktop
-has to see `~/workspace`, `/var/run/docker.sock`, the hermes CLI and the
-services bound to `127.0.0.1`. A container sees none of those, so it would be a
+has to see `~/workspace`, `/var/run/docker.sock` and the services bound to
+`127.0.0.1`. A container sees none of those, so it would be a
 second machine sitting next to the one we actually want to use.
 
 The Oracle image is Ubuntu Server: headless, no X server, no GUI applications.
@@ -144,6 +144,10 @@ the private address as well:
 ```ini
 port=tcp://.:3389,tcp://10.0.0.229:3389
 ```
+
+The full runbook, including the split-tunnel exclusion and the Gateway network
+policy that trip most setups, is [warp-rdp.md](warp-rdp.md). It works from a
+laptop too, which removes the `cloudflared access rdp` command entirely.
 
 **noVNC.** Attach a VNC server to the session and serve it over HTTP, which any
 phone browser can open through the existing tunnel. This adds a service and a

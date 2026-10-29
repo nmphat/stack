@@ -15,24 +15,9 @@
     "cwd": "$HOME/stack/searxng"
   },
   {
-    "name": "hermes-gateway",
-    "command": "hermes gateway",
-    "cwd": "$HOME/stack"
-  },
-  {
-    "name": "hindsight",
-    "command": "docker compose up",
-    "cwd": "$HOME/stack/hindsight"
-  },
-  {
     "name": "termix",
     "command": "docker compose up",
     "cwd": "$HOME/stack/termix"
-  },
-  {
-    "name": "hermes-webui",
-    "command": "$HOME/stack/hermes-webui/pm2-start.sh",
-    "cwd": "$HOME/stack/hermes-webui"
   },
   {
     "name": "firecrawl",
